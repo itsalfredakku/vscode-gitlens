@@ -1,58 +1,19 @@
 name: Publish pre-release
 
 on:
-    schedule:
-        - cron: '0 9 * * *' # every day at 4am EST
+    push:
+        branches:
+            - mod
+        tags:
+            - 'v*.*.*'
     workflow_dispatch:
 
 jobs:
-    check:
-        name: Check for updates
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
-        outputs:
-            status: ${{ steps.earlyexit.outputs.status }}
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
-            - id: earlyexit
-              run: |
-                  git config user.name github-actions
-                  git config user.email github-actions@github.com
-                  if git rev-parse origin/pre >/dev/null 2>&1; then
-                    preRef=$(git show-ref -s origin/pre)
-                    headRef=$(git show-ref --head -s head)
-                    echo "origin/pre"
-                    echo $preRef
-                    echo "HEAD"
-                    echo $headRef
-                    if [ "$preRef" = "$headRef" ]; then
-                      echo "No changes since last pre-release build. Exiting."
-                      echo "status=unchanged" >> $GITHUB_OUTPUT
-                      exit 0
-                    else
-                      echo "Updating pre"
-                      git push origin --delete pre
-                      git checkout -b pre
-                      git push origin pre
-                    fi
-                  else
-                    echo "No pre branch. Creating."
-                    git checkout -b pre
-                    git push origin pre
-                  fi
-                  echo "status=changed" >> $GITHUB_OUTPUT
-
     publish:
         name: Publish pre-release
-        needs: check
         runs-on: ubuntu-latest
         permissions:
             contents: write
-        if: needs.check.outputs.status == 'changed'
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
