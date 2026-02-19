@@ -1328,6 +1328,24 @@ export class SubscriptionService implements Disposable {
 			state: SubscriptionState.Community,
 		};
 
+		// HACK: Force Pro subscription
+		const proPlan = getSubscriptionPlan('pro', false, 0, undefined, new Date(), new Date(Date.now() + 365 * 24 * 60 * 60 * 1000));
+		subscription = {
+			...subscription,
+			plan: {
+				actual: proPlan,
+				effective: proPlan,
+			},
+			account: subscription.account ?? {
+				id: 'dev-account',
+				name: 'Developer',
+				email: 'dev@localhost',
+				verified: true,
+				createdOn: new Date().toISOString(),
+			},
+			state: SubscriptionState.Paid,
+		};
+
 		// If the effective plan has expired, then replace it with the actual plan
 		if (isSubscriptionExpired(subscription)) {
 			subscription = {
