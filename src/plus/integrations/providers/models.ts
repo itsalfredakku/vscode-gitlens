@@ -334,8 +334,8 @@ export type GetAzureProjectsForResourceFn = (
 	input: { namespace: string; cursor?: string },
 	options?: EnterpriseOptions,
 ) => Promise<{ data: AzureProject[]; pageInfo?: PageInfo }>;
-export type GetBitbucketResourcesForUserFn = (
-	input: { userId: string },
+export type GetBitbucketResourcesForCurrentUserFn = (
+	input: Record<string, never>,
 	options?: EnterpriseOptions,
 ) => Promise<{ data: BitbucketWorkspaceStub[] }>;
 export type GetBitbucketPullRequestsAuthoredByUserForWorkspaceFn = (
@@ -387,7 +387,7 @@ export interface ProviderInfo extends ProviderMetadata {
 	getLinearOrganizationFn?: GetLinearOrganizationFn;
 	getLinearTeamsForCurrentUserFn?: GetLinearTeamsForCurrentUserFn;
 	getAzureResourcesForUserFn?: GetAzureResourcesForUserFn;
-	getBitbucketResourcesForUserFn?: GetBitbucketResourcesForUserFn;
+	getBitbucketResourcesForCurrentUserFn?: GetBitbucketResourcesForCurrentUserFn;
 	getBitbucketPullRequestsAuthoredByUserForWorkspaceFn?: GetBitbucketPullRequestsAuthoredByUserForWorkspaceFn;
 	getBitbucketServerPullRequestsForCurrentUserFn?: GetBitbucketServerPullRequestsForCurrentUserFn;
 	getJiraProjectsForResourcesFn?: GetJiraProjectsForResourcesFn;
@@ -865,6 +865,7 @@ export function toProviderPullRequest(pr: PullRequest): ProviderPullRequest {
 		graphQLId: pr.nodeId,
 		number: Number.parseInt(pr.id, 10),
 		title: pr.title,
+		description: null,
 		url: pr.url,
 		state: toProviderPullRequestState(pr.state),
 		isDraft: pr.isDraft ?? false,

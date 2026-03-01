@@ -366,6 +366,9 @@ export class GkCliIntegrationProvider implements Disposable {
 						'cli.version': cliVersion,
 					});
 				}
+
+				this.container.events.fire('gk:cli:mcp:setup:completed', undefined);
+
 				return {
 					cliVersion: cliVersion,
 					usingExtensionRegistration: true,
@@ -638,7 +641,7 @@ export class GkCliIntegrationProvider implements Disposable {
 					Uri.parse('https://api.gitkraken.dev'),
 					'releases',
 					'gkcli-proxy',
-					'production',
+					insidersEnabled ? 'insiders' : 'production',
 					platformName,
 					architecture,
 					'active',
@@ -652,7 +655,9 @@ export class GkCliIntegrationProvider implements Disposable {
 					'active',
 				); */
 
-				scope?.trace(`Fetching CLI proxy: platform=${platformName}, arch=${architecture}`);
+				scope?.trace(
+					`Fetching CLI proxy: platform=${platformName}, arch=${architecture}, edition=${insidersEnabled ? 'insiders' : 'production'}`,
+				);
 				let response = await fetch(proxyUrl);
 				if (!response.ok) {
 					throw new CLIInstallError(

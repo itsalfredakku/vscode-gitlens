@@ -10,6 +10,29 @@ This workspace contains **GitLens** - a powerful VS Code extension that supercha
 4. **Fixing over disabling** — When asked to fix a feature, fix the root cause. Do not disable, remove, or work around it unless explicitly asked. "Fix" and "disable" are different instructions.
 5. **Confirming over assuming** — When debugging, present your hypothesis with evidence before implementing. If a request is ambiguous, ask for clarification. Do not silently start editing on non-trivial changes without stating your approach.
 6. **Purposeful changes** — Refactoring and renaming to improve clarity, maintainability, and codebase health are encouraged. Explain what you're changing and why. Do not make silent drive-by changes unrelated to the task at hand.
+7. **Branch ownership** — The current branch owns ALL of its issues, not just those from your current task. Do not dismiss build errors, type errors, or test failures as "pre-existing" without verifying against the base branch (`git diff main --stat` or similar). If an issue exists on this branch but not on the base branch, it is the branch's responsibility regardless of when it was introduced. After completing your current task, address any remaining branch issues. If the scope of remaining issues is too large to handle, ask the user how to proceed.
+
+## Issue Accountability During Work
+
+### Branch vs. Repository Issues
+
+- **Branch issues**: Errors that exist on the current branch but NOT on the base branch. These are the branch's responsibility regardless of which task or session introduced them.
+- **Repository issues**: Errors that also exist on the base branch. These are truly pre-existing and can be noted but not prioritized.
+- **When in doubt**: Run `git stash && pnpm run build && git stash pop` or `git diff main --name-only` to verify. Do NOT assume an issue is pre-existing — verify it.
+
+### Workflow
+
+1. **Focus first** — Complete your current task
+2. **Then fix** — After your task is done, address any remaining build errors, type errors, or test failures on the branch
+3. **Ask if too large** — If the remaining issues are extensive or unclear, inform the user and ask how to proceed rather than ignoring them
+
+### Completion Criteria
+
+A task is not complete until:
+
+- The code compiles cleanly (`pnpm run build` or relevant build command succeeds)
+- Related tests pass
+- Any remaining branch issues have been either fixed or raised to the user
 
 ## Development Environment
 
@@ -67,12 +90,10 @@ pnpm install              # Install dependencies (requires Node >= 22.12.0, pnpm
 pnpm run rebuild          # Complete rebuild from scratch
 pnpm run build            # Full development build (everything including e2e and unit tests)
 pnpm run build:quick      # Fast build (no linting)
-pnpm run build:turbo      # Turbo build (no typechecking or linting)
 pnpm run build:extension  # Build only the extension (no webviews)
 pnpm run build:webviews   # Build only webviews
 pnpm run bundle           # Production bundle
-pnpm run bundle:e2e       # E2E tests (turbo) production bundle (with DEBUG for account simulation)
-pnpm run bundle:turbo     # Turbo production bundle (no typechecking or linting)
+pnpm run bundle:e2e       # E2E tests production bundle (with DEBUG for account simulation)
 ```
 
 ### Watch Mode
@@ -80,7 +101,6 @@ pnpm run bundle:turbo     # Turbo production bundle (no typechecking or linting)
 ```bash
 pnpm run watch            # Watch mode for development (everything including e2e and unit tests)
 pnpm run watch:quick      # Fast watch mode (no linting)
-pnpm run watch:turbo      # Turbo watch mode (no typechecking or linting)
 pnpm run watch:extension  # Watch extension only
 pnpm run watch:tests      # Watch unit tests only
 pnpm run watch:webviews   # Watch webviews only
@@ -256,6 +276,7 @@ As an expert software developer with deep expert-level knowledge of TypeScript, 
 - Verify that there are no new lint violations
 - Review commit messages for clarity and adherence to guidelines
 - Ensure CHANGELOG entries are added for user-facing changes
+- Verify that build errors and test failures are not being dismissed as "pre-existing" without evidence
 
 ## Debugging & Investigation Methodology
 
