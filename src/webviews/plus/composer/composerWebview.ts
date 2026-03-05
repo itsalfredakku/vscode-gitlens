@@ -116,6 +116,7 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 		branchName?: string;
 		locked: boolean;
 		commitShas?: string[];
+		messages?: string[];
 		range?: { base: string; head: string };
 	} | null = null;
 
@@ -127,6 +128,9 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 
 	// AI conversation map for generate commits (keyed by hunks hash)
 	private _generateCommitsConversations = new Map<string, AIConversation>();
+
+	// Suppress the large prompt warning after the first successful AI action in this session
+	private _suppressLargePromptWarning = false;
 
 	constructor(
 		protected readonly container: Container,
@@ -170,6 +174,7 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 			'context.diff.files.count': this._context.diff.files,
 			'context.diff.hunks.count': this._context.diff.hunks,
 			'context.diff.lines.count': this._context.diff.lines,
+			'context.diff.hash': this._context.diff.hash,
 			'context.diff.staged.exists': this._context.diff.staged,
 			'context.diff.unstaged.exists': this._context.diff.unstaged,
 			'context.diff.unstaged.included': this._context.diff.unstagedIncluded,
@@ -295,19 +300,12 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 		isReload?: boolean,
 	): Promise<State> {
 		this._generateCommitsConversations.clear();
+		this._suppressLargePromptWarning = false;
 		this._currentRepository = repo;
 		this._hunks = hunks;
 
 		const safetyState = await createSafetyState(repo, diffs, baseCommit?.sha, headCommitSha, branchName);
 		this._safetyState = safetyState;
-		if (branchName || (baseCommit && headCommitSha)) {
-			this._recompose = {
-				enabled: true,
-				branchName: branchName,
-				locked: true,
-				commitShas: commitShas,
-			};
-		}
 
 		if (commitShas && commitShas.length > 0) {
 			const recomposeSet = new Set(commitShas);
@@ -316,6 +314,20 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 					commit.locked = true;
 				}
 			}
+		}
+
+		const messages = commitShas?.length
+			? commits.filter(c => c.sha && commitShas.includes(c.sha)).map(c => c.message.content)
+			: commits.map(c => c.message.content);
+
+		if (branchName || (baseCommit && headCommitSha)) {
+			this._recompose = {
+				enabled: true,
+				branchName: branchName,
+				locked: true,
+				commitShas: commitShas,
+				messages: messages,
+			};
 		}
 
 		const aiEnabled = this.getAiEnabled();
@@ -331,6 +343,7 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 		this._context.diff.files = new Set(hunks.map(h => h.fileName)).size;
 		this._context.diff.hunks = hunks.length;
 		this._context.diff.lines = hunks.reduce((total, hunk) => total + hunk.content.split('\n').length - 1, 0);
+		this._context.diff.hash = md5(hunks.map(h => h.content).join('\n'));
 		this._context.commits.initialCount = 0;
 		this._context.ai.enabled.org = aiEnabled.org;
 		this._context.ai.enabled.config = aiEnabled.config;
@@ -739,6 +752,7 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 	private onReset(): void {
 		this._context.operations.reset.count++;
 		this._generateCommitsConversations.clear();
+		this._suppressLargePromptWarning = false;
 		this.host.sendTelemetryEvent('composer/action/reset');
 	}
 
@@ -771,6 +785,7 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 			// Clear cache to force fresh data on reload
 			this._cache.clear();
 			this._generateCommitsConversations.clear();
+			this._suppressLargePromptWarning = false;
 
 			let repo = this._currentRepository;
 			if (!repo || (params.repoPath != null && repo?.path !== params.repoPath)) {
@@ -922,6 +937,7 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 
 	private resetContext(): void {
 		this._context = { ...baseContext };
+		this._suppressLargePromptWarning = false;
 	}
 
 	onShowing(
@@ -1189,12 +1205,14 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 			const result = await this.container.ai.actions.generateCommits(
 				hunks,
 				existingCommits,
+				this._recompose?.enabled ? (this._recompose.messages ?? []) : [],
 				hunks.map(m => ({ index: m.index, hunkHeader: m.hunkHeader })),
 				{ source: 'composer', correlationId: this.host.instanceId },
 				{
 					cancellation: this._generateCommitsCancellation.token,
 					customInstructions: params.customInstructions,
 					conversation: conversation,
+					suppressLargePromptWarning: this._suppressLargePromptWarning,
 				},
 			);
 
@@ -1212,6 +1230,9 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 			}
 
 			if (result && result !== 'cancelled') {
+				// Suppress the large prompt warning for the rest of this session
+				this._suppressLargePromptWarning = true;
+
 				if (result.commits.length === 0) {
 					this._context.operations.generateCommits.errorCount++;
 					this._context.errors.operation.count++;
@@ -1363,6 +1384,7 @@ export class ComposerWebviewProvider implements WebviewProvider<State, State, Co
 				{ source: 'composer', correlationId: this.host.instanceId },
 				{
 					cancellation: this._generateCommitMessageCancellation.token,
+					suppressLargePromptWarning: this._suppressLargePromptWarning,
 				},
 			);
 
