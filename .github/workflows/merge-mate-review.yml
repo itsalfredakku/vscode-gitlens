@@ -29,11 +29,11 @@ jobs:
             (
                 github.event.issue.pull_request &&
                 github.event.comment.user.login == 'github-actions[bot]' &&
-                contains(fromJSON('["eamodio", "d13", "axosoft-ramint", "sergeibbb", "justinrobots", "ianhattendorf"]'), github.event.sender.login)
+                contains(fromJSON('["eamodio", "d13", "ramin-t", "sergeibbb", "justinrobots", "ianhattendorf"]'), github.event.sender.login)
             )
         runs-on: ubuntu-latest
         steps:
-            - uses: gitkraken/merge-mate-action/review@v0.1
+            - uses: gitkraken/merge-mate-action/review@v0.2
               with:
                   pr-number: ${{ inputs.pr-number }}
                   action: ${{ inputs.action }}
